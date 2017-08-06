@@ -1,0 +1,60 @@
+####################################################################################################
+def NormalizeURL(url):
+
+	return url
+
+####################################################################################################
+def MetadataObjectForURL(url):
+		
+	try:
+		html = HTML.ElementFromURL(url)	
+		
+		title = html.xpath('//title/text()')[0].replace('–', '')	
+		Log("Title: "+title)
+		summary = html.xpath("//meta[@name='description']/@content")[0]
+		thumb = html.xpath("//meta[@property='og:image']/@content")[0]		
+
+		show = Regex('Watch (.*?) (Season|Episode)').findall(title)[0][0]
+		title = Regex('Episode \d+ (.*?) (Online|$)').findall(title)[0][0]
+		
+		Log("Loading: " + show + " / " + title)
+		
+		return EpisodeObject(
+			show = show,
+			title = title,
+			summary = summary,
+			thumb = Resource.ContentsOfURLWithFallback(url=thumb)
+		)
+	except:
+		raise Ex.MediaNotAvailable
+	
+
+
+
+####################################################################################################
+@deferred
+def MediaObjectsForURL(url):
+
+    return [
+        MediaObject(
+            video_codec = VideoCodec.H264,
+            audio_codec = AudioCodec.AAC,
+            container = 'mp4',
+            parts = [PartObject(key=Callback(PlayVideo, url = url))]
+        )
+    ]
+
+####################################################################################################
+def PlayVideo(url):
+
+	html = HTTP.Request(url).content
+	html = Regex('(\s|\r)').sub('', html)
+	#key = Regex('<script>jwplayer.key=\"(.*)\"</script>').findall(html);
+	#for keys in key:
+	#	Log('key: ' + keys)
+	vid = Regex('\{file:\"(.+?)\"').findall(html);
+	Log("Got back " + str(len(vid)))
+	#for vids in vid:
+	#	Log("v: "+vids)
+	Log('Opening ' + vid[len(vid)-1])
+	return Redirect(vid[len(vid)-1])
